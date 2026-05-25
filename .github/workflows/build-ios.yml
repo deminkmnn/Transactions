@@ -8,6 +8,7 @@ jobs:
     runs-on: macos-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -17,48 +18,53 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install dependencies
-        run: |
-          npm install
-          npx expo install --fix
+      - name: Setup Ruby / CocoaPods
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: false
+
+      - name: Install CocoaPods gem
+        run: gem install cocoapods --no-document
+
+      - name: Install JS dependencies
+        run: npm install
 
       - name: Apply patches
         run: npx patch-package
 
-      - name: Install CocoaPods
+      - name: Prebuild iOS
+        run: npx expo prebuild --platform ios --clean --no-install
+
+      - name: Install Pods
         run: |
           cd ios
-          # Повна очистка перед установкою
-          rm -rf Pods
-          rm -f Podfile.lock
-          pod repo update
-          pod install
+          pod install --repo-update
           cd ..
 
       - name: Build Unsigned App
         run: |
           cd ios
           set -o pipefail
-          # Знаходимо назву воркспейсу
           WORKSPACE=$(ls -d *.xcworkspace | head -n 1)
-          
-          # Основна команда збірки
-          xcodebuild -workspace "$WORKSPACE" \
-            -scheme "PrivatTracker" \
+          SCHEME=$(echo "$WORKSPACE" | sed 's/.xcworkspace//')
+
+          xcodebuild \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
             -configuration Release \
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            build | xcpretty || true
+            build 2>&1 | tee build.log | xcpretty || true
 
       - name: Package into IPA
         run: |
           cd ios
           mkdir -p Payload
-          # Знаходимо артефакт
-          find build -name "*.app" -exec cp -R {} Payload/ \;
+          find build -name "*.app" -type d | head -1 | xargs -I{} cp -R {} Payload/
           zip -qr app.ipa Payload/
 
       - name: Upload IPA
@@ -66,3 +72,10 @@ jobs:
         with:
           name: iOS-App-AltStore
           path: ios/app.ipa
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: ios/build.log
