@@ -15,7 +15,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install dependencies
         run: npm install
@@ -23,20 +23,31 @@ jobs:
       - name: Prebuild iOS
         run: npx expo prebuild --platform ios --clean
 
+      - name: Clean iOS Build Artifacts
+        run: |
+          cd ios
+          rm -rf Pods
+          rm -f Podfile.lock
+          rm -rf build
+          cd ..
+
       - name: Install CocoaPods
         run: |
           cd ios
-          bundle install
+          # Очищаємо Podfile.lock і Pods перед установкою
+          rm -f Podfile.lock
+          rm -rf Pods
+          bundle install || echo "No Gemfile found"
           pod repo update
           pod install
+          cd ..
 
       - name: Build Unsigned App
         run: |
           cd ios
-          # Використовуємо xcbeautify для чистого логу (якщо встановлено) 
-          # або просто xcodebuild з налаштуваннями
           set -o pipefail
-          xcodebuild -workspace *.xcworkspace \
+          # Збираємо додаток, ігноруючи підпис
+          xcodebuild -workspace "*.xcworkspace" \
             -scheme "*" \
             -configuration Release \
             -sdk iphoneos \
@@ -49,9 +60,10 @@ jobs:
       - name: Package into IPA
         run: |
           cd ios
+          # Знаходимо скомпільований .app файл і створюємо структуру Payload
           mkdir -p Payload
-          # Шукаємо .app файл і кладемо в Payload
           find build -name "*.app" -exec cp -R {} Payload/ \;
+          # Пакуємо в IPA
           zip -qr app.ipa Payload/
 
       - name: Upload IPA
