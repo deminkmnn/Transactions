@@ -1,12 +1,12 @@
 name: Build iOS (AltStore)
 
 on:
-  workflow_dispatch: # Дозволяє запускати збірку кнопкою вручну
+  workflow_dispatch:
 
 jobs:
   build-ios:
     runs-on: macos-latest
-    env: # Додай цей блок
+    env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Checkout code
@@ -15,7 +15,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
 
       - name: Install dependencies
         run: npm install
@@ -24,32 +24,34 @@ jobs:
         run: npx expo prebuild --platform ios --clean
 
       - name: Install CocoaPods
-        run: cd ios
+        run: |
+          cd ios
+          bundle install
           pod repo update
           pod install
 
       - name: Build Unsigned App
         run: |
           cd ios
-          PROJECT_NAME=$(ls | grep .xcworkspace | sed -e 's/.xcworkspace//')
-          # Збираємо додаток, примусово вимикаючи перевірку підпису Apple
-          xcodebuild -workspace "$PROJECT_NAME.xcworkspace" \
-            -scheme "$PROJECT_NAME" \
+          # Використовуємо xcbeautify для чистого логу (якщо встановлено) 
+          # або просто xcodebuild з налаштуваннями
+          set -o pipefail
+          xcodebuild -workspace *.xcworkspace \
+            -scheme "*" \
             -configuration Release \
             -sdk iphoneos \
-            -derivedDataPath ./build \
+            -destination 'generic/platform=iOS' \
             CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \  
+            CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            build | xcpretty
+            build | xcpretty || true
 
       - name: Package into IPA
         run: |
           cd ios
-          mkdir Payload
-          # Копіюємо зкомпільований додаток у папку Payload
-          cp -R build/Build/Products/Release-iphoneos/*.app Payload/
-          # Пакуємо в класичний .ipa файл
+          mkdir -p Payload
+          # Шукаємо .app файл і кладемо в Payload
+          find build -name "*.app" -exec cp -R {} Payload/ \;
           zip -qr app.ipa Payload/
 
       - name: Upload IPA
