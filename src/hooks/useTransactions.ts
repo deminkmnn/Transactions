@@ -1,59 +1,130 @@
 import { useState, useEffect, useCallback } from 'react';
-import { transactionsApi, TransactionQuery } from '../services/api';
-import { Transaction, MonthlyStats, YearlyStats } from '../types';
+import { transactionsApi } from '../services/api';
+import { Transaction, TransactionCategory } from '../types';
 
-export function useTransactions(query: TransactionQuery = {}) {
+interface UseTransactionsOptions {
+  limit?: number;
+  category?: TransactionCategory;
+  type?: 'debit' | 'credit';
+}
+
+// 1. Хук для транзакцій (з нашою новою пагінацією!)
+export const useTransactions = (options?: UseTransactionsOptions) => {
   const [data, setData] = useState<Transaction[]>([]);
-  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
 
-  const fetch = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const limit = options?.limit || 50;
+  const category = options?.category;
+  const type = options?.type;
+
+  const fetchTransactions = useCallback(async (pageNum: number, isRefresh = false) => {
     try {
-      const res = await transactionsApi.getAll(query);
-      setData(res.data);
+      if (isRefresh) setLoading(true);
+      else setLoadingMore(true);
+
+      const offset = (pageNum - 1) * limit;
+
+      const res = await transactionsApi.getAll({
+        limit,
+        offset, 
+        category,
+        type,
+      });
+
+      if (isRefresh) {
+        setData(res.data);
+      } else {
+        setData(prev => [...prev, ...res.data]);
+      }
+
       setTotal(res.total);
-    } catch (e: any) {
-      setError(e.message ?? 'Помилка завантаження');
+      setHasMore(res.data.length === limit); 
+    } catch (error) {
+      console.error('Failed to fetch transactions:', error);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
-  }, [JSON.stringify(query)]);
-
-  useEffect(() => { fetch(); }, [fetch]);
-
-  return { data, total, loading, error, refetch: fetch };
-}
-
-export function useMonthlyStats(year: number, month: number) {
-  const [stats, setStats] = useState<MonthlyStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  }, [limit, category, type]);
 
   useEffect(() => {
-    setLoading(true);
-    transactionsApi
-      .getMonthlyStats(year, month)
-      .then(setStats)
-      .catch(e => setError(e.message))
-      .finally(() => setLoading(false));
+    setPage(1);
+    fetchTransactions(1, true);
+  }, [fetchTransactions]);
+
+  const refetch = () => {
+    setPage(1);
+    return fetchTransactions(1, true);
+  };
+
+  const loadMore = () => {
+    if (loadingMore || loading || !hasMore) return;
+    const nextPage = page + 1;
+    setPage(nextPage);
+    fetchTransactions(nextPage, false);
+  };
+
+  return { data, total, loading, loadingMore, hasMore, refetch, loadMore };
+};
+
+// 2. ПОВЕРНУЛИ Хук для місячної статистики
+export const useMonthlyStats = (year: number, month: number) => {
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchStats = async () => {
+      setLoading(true);
+      try {
+        const res = await transactionsApi.getMonthlyStats(year, month);
+        if (isMounted) setStats(res);
+      } catch (error) {
+        console.error('Failed to fetch monthly stats:', error);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+    
+    fetchStats();
+    
+    return () => {
+      isMounted = false;
+    };
   }, [year, month]);
 
-  return { stats, loading, error };
-}
+  return { stats, loading };
+};
 
-export function useYearlyStats(year: number) {
-  const [stats, setStats] = useState<YearlyStats | null>(null);
+// 3. ПОВЕРНУЛИ Хук для річної статистики
+export const useYearlyStats = (year: number) => {
+  const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    transactionsApi
-      .getYearlyStats(year)
-      .then(setStats)
-      .finally(() => setLoading(false));
+    let isMounted = true;
+    const fetchStats = async () => {
+      setLoading(true);
+      try {
+        const res = await transactionsApi.getYearlyStats(year);
+        if (isMounted) setStats(res);
+      } catch (error) {
+        console.error('Failed to fetch yearly stats:', error);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+    
+    fetchStats();
+    
+    return () => {
+      isMounted = false;
+    };
   }, [year]);
 
   return { stats, loading };
-}
+};

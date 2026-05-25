@@ -86,9 +86,26 @@ export class AccountsService {
     await this.repo.update({ cardNumber }, { balance, lastSyncAt: new Date() });
   }
 
+  // === ВИПРАВЛЕНИЙ МЕТОД ===
   async refreshBalance(id: string, userId: string): Promise<Account> {
-    return this.findOne(id, userId);
+    const acc = await this.findOne(id, userId);
+    
+    // Шукаємо найостаннішу транзакцію (за датою) саме для цієї картки
+    const lastTx = await this.repo.manager.query(
+      `SELECT balance FROM transactions WHERE "cardNumber" = $1 ORDER BY "transactionDate" DESC LIMIT 1`,
+      [acc.cardNumber]
+    );
+
+    // Якщо знайшли транзакцію і там є баланс, оновлюємо картку
+    if (lastTx && lastTx.length > 0 && lastTx[0].balance !== null) {
+      acc.balance = Number(lastTx[0].balance);
+      acc.lastSyncAt = new Date();
+      await this.repo.save(acc);
+    }
+
+    return acc;
   }
+  // ==========================
 
   async remove(id: string, userId: string): Promise<void> {
     const acc = await this.findOne(id, userId);

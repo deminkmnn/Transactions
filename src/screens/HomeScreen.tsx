@@ -10,11 +10,14 @@ import { BalanceCard } from '../components/BalanceCard';
 import { TransactionItem } from '../components/TransactionItem';
 import { Transaction } from '../types';
 import { colors, spacing, typography } from '../theme';
+import { useAppSettings } from '../hooks/useAppSettings';
 
 export const HomeScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const { t } = useAppSettings(); 
+  
   const { accounts, syncing, refetch: refetchAccounts, sync } = useAccounts();
-  const { data: transactions, loading, refetch } = useTransactions({ limit: 30 });
+  const { data: transactions, loading, loadingMore, refetch, loadMore } = useTransactions({ limit: 30 });
   const [refreshing, setRefreshing] = useState(false);
 
   const primaryAccount = accounts[0] ?? null;
@@ -47,15 +50,24 @@ export const HomeScreen: React.FC = () => {
             tintColor={colors.primary}
           />
         }
+        
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={
+          loadingMore ? (
+            <View style={{ paddingVertical: spacing.lg }}>
+              <ActivityIndicator color={colors.primary} size="small" />
+            </View>
+          ) : null
+        }
+
         ListHeaderComponent={
           <>
-            {/* Заголовок */}
             <View style={styles.header}>
               <Text style={styles.greeting}>Hello 👋</Text>
-              <Text style={typography.h2}>My Finances</Text>
+              <Text style={typography.h2}>{t('MyFinances')}</Text>
             </View>
 
-            {/* Картки балансу */}
             {primaryAccount && (
               <BalanceCard
                 account={primaryAccount}
@@ -64,10 +76,9 @@ export const HomeScreen: React.FC = () => {
               />
             )}
 
-            {/* Заголовок списку */}
-            <Text style={styles.sectionTitle}>Recent Transactions</Text>
+            <Text style={styles.sectionTitle}>{t('RecentTransactions')}</Text>
 
-            {loading && (
+            {loading && !loadingMore && (
               <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xl }} />
             )}
           </>
@@ -77,7 +88,7 @@ export const HomeScreen: React.FC = () => {
         )}
         ListEmptyComponent={
           !loading ? (
-            <Text style={styles.empty}>No transactions yet</Text>
+            <Text style={styles.empty}>{t('NoTransactions')}</Text>
           ) : null
         }
       />
@@ -86,35 +97,10 @@ export const HomeScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: colors.bg,
-  },
-  content: {
-    padding: spacing.md,
-    paddingBottom: spacing.xxl,
-  },
-  header: {
-    marginBottom: spacing.lg,
-    marginTop: spacing.sm,
-  },
-  greeting: {
-    ...typography.caption,
-    color: colors.primary,
-    fontWeight: '600',
-    marginBottom: spacing.xs,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  sectionTitle: {
-    ...typography.h3,
-    marginBottom: spacing.md,
-    marginTop: spacing.sm,
-  },
-  empty: {
-    ...typography.body,
-    color: colors.textMuted,
-    textAlign: 'center',
-    marginTop: spacing.xl,
-  },
+  safe: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: spacing.md, paddingBottom: spacing.xxl },
+  header: { marginBottom: spacing.lg, marginTop: spacing.sm },
+  greeting: { ...typography.caption, color: colors.primary, fontWeight: '600', marginBottom: spacing.xs, textTransform: 'uppercase', letterSpacing: 1 },
+  sectionTitle: { ...typography.h3, marginBottom: spacing.md, marginTop: spacing.sm },
+  empty: { ...typography.body, color: colors.textMuted, textAlign: 'center', marginTop: spacing.xl },
 });
