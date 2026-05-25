@@ -54,3 +54,37 @@ export interface PaginatedResponse<T> {
   data: T[];
   total: number;
 }
+
+export interface PdfImportPreviewTransaction {
+  externalId: string;
+  cardNumber: string;
+  type: TransactionType;
+  amount: number;
+  currency: string;
+  balance: number;
+  description: string;
+  category: TransactionCategory;
+  transactionDate: string;
+  operationCurrency: string;
+  operationAmount: number;
+  commission: number;
+  discount: number;
+}
+
+export interface PdfImportPreview {
+  accountId: string;
+  fileName: string;
+  totalParsed: number;
+  duplicateCount: number;
+  newCount: number;
+  period: string | null;
+  transactions: PdfImportPreviewTransaction[];
+}
+
+export interface PdfImportResult {
+  fileName: string;
+  period: string | null;
+  totalParsed: number;
+  imported: number;
+  skipped: number;
+}

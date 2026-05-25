@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView,
   TouchableOpacity, SafeAreaView, ActivityIndicator,
 } from 'react-native';
-import Svg from 'react-native-svg'; // потрібен для chart-kit на web
+import Svg from 'react-native-svg';
 import { BarChart } from 'react-native-chart-kit';
 import { Dimensions } from 'react-native';
 import { useMonthlyStats, useYearlyStats } from '../hooks/useTransactions';
@@ -11,7 +11,7 @@ import { colors, spacing, radius, typography, categoryMeta } from '../theme';
 import { TransactionCategory } from '../types';
 
 const SCREEN_W = Dimensions.get('window').width;
-const MONTHS_UA = ['Січ','Лют','Бер','Кві','Тра','Чер','Лип','Сер','Вер','Жов','Лис','Гру'];
+const MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export const StatsScreen: React.FC = () => {
   const now = new Date();
@@ -21,18 +21,9 @@ export const StatsScreen: React.FC = () => {
   const { stats, loading } = useMonthlyStats(year, month);
   const { stats: yearly } = useYearlyStats(year);
 
-  const prevMonth = () => {
-    if (month === 1) { setMonth(12); setYear(y => y - 1); }
-    else setMonth(m => m - 1);
-  };
-  const nextMonth = () => {
-    if (month === 12) { setMonth(1); setYear(y => y + 1); }
-    else setMonth(m => m + 1);
-  };
-
   // Дані для bar chart
   const barData = yearly ? {
-    labels: yearly.months.map(m => MONTHS_UA[m.month - 1]),
+    labels: yearly.months.map(m => MONTHS_EN[m.month - 1]),
     datasets: [
       {
         data: yearly.months.map(m => m.expenses),
@@ -50,19 +41,43 @@ export const StatsScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={[typography.h2, { marginBottom: spacing.lg }]}>Статистика</Text>
+        <Text style={[typography.h2, { marginBottom: spacing.lg }]}>Statistics</Text>
 
-        {/* Навігація по місяцях */}
-        <View style={styles.monthNav}>
-          <TouchableOpacity onPress={prevMonth} style={styles.navBtn}>
-            <Text style={styles.navArrow}>‹</Text>
-          </TouchableOpacity>
-          <Text style={styles.monthLabel}>
-            {MONTHS_UA[month - 1]} {year}
-          </Text>
-          <TouchableOpacity onPress={nextMonth} style={styles.navBtn}>
-            <Text style={styles.navArrow}>›</Text>
-          </TouchableOpacity>
+        {/* Новий зручний вибір дати */}
+        <View style={styles.dateSelectorCard}>
+          {/* Вибір року */}
+          <View style={styles.yearRow}>
+            <TouchableOpacity onPress={() => setYear(y => y - 1)} style={styles.navBtn}>
+              <Text style={styles.navArrow}>‹</Text>
+            </TouchableOpacity>
+            <Text style={styles.yearLabel}>{year}</Text>
+            <TouchableOpacity onPress={() => setYear(y => y + 1)} style={styles.navBtn}>
+              <Text style={styles.navArrow}>›</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Стрічка місяців */}
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false} 
+            contentContainerStyle={styles.monthsScroll}
+          >
+            {MONTHS_EN.map((mName, index) => {
+              const mNum = index + 1;
+              const isActive = mNum === month;
+              return (
+                <TouchableOpacity
+                  key={mNum}
+                  style={[styles.monthChip, isActive && styles.monthChipActive]}
+                  onPress={() => setMonth(mNum)}
+                >
+                  <Text style={[styles.monthChipText, isActive && styles.monthChipTextActive]}>
+                    {mName}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
         </View>
 
         {loading ? (
@@ -72,13 +87,13 @@ export const StatsScreen: React.FC = () => {
             {/* Картки income / expenses */}
             <View style={styles.summaryRow}>
               <View style={[styles.summaryCard, { borderColor: colors.success + '44' }]}>
-                <Text style={styles.summaryLabel}>Дохід</Text>
+                <Text style={styles.summaryLabel}>Income</Text>
                 <Text style={[styles.summaryAmount, { color: colors.success }]}>
                   +{stats.totalIncome.toFixed(0)} ₴
                 </Text>
               </View>
               <View style={[styles.summaryCard, { borderColor: colors.danger + '44' }]}>
-                <Text style={styles.summaryLabel}>Витрати</Text>
+                <Text style={styles.summaryLabel}>Expenses</Text>
                 <Text style={[styles.summaryAmount, { color: colors.danger }]}>
                   −{stats.totalExpenses.toFixed(0)} ₴
                 </Text>
@@ -88,7 +103,7 @@ export const StatsScreen: React.FC = () => {
             {/* Категорії */}
             {topCategories.length > 0 && (
               <>
-                <Text style={styles.sectionTitle}>По категоріях</Text>
+                <Text style={styles.sectionTitle}>By Category</Text>
                 {topCategories.map(([cat, amount]) => {
                   const meta = categoryMeta[cat as TransactionCategory];
                   const pct = stats.totalExpenses > 0
@@ -120,7 +135,7 @@ export const StatsScreen: React.FC = () => {
             {/* Найбільша витрата */}
             {stats.topExpense && (
               <View style={styles.topExpenseCard}>
-                <Text style={styles.summaryLabel}>Найбільша витрата місяця</Text>
+                <Text style={styles.summaryLabel}>Largest Expense of the Month</Text>
                 <Text style={styles.topExpenseDesc} numberOfLines={1}>
                   {stats.topExpense.description}
                 </Text>
@@ -136,7 +151,7 @@ export const StatsScreen: React.FC = () => {
         {barData && (
           <>
             <Text style={[styles.sectionTitle, { marginTop: spacing.lg }]}>
-              Витрати {year} р.
+              Expenses {year}
             </Text>
             <BarChart
               data={barData}
@@ -166,18 +181,48 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   content: { padding: spacing.md, paddingBottom: spacing.xxl },
 
-  monthNav: {
+  // Стилі для нового селектора дат
+  dateSelectorCard: {
+    backgroundColor: colors.bgCard,
+    borderRadius: radius.md,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  yearRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.bgCard,
-    borderRadius: radius.md,
-    padding: spacing.sm,
-    marginBottom: spacing.md,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.xs,
   },
-  navBtn: { padding: spacing.sm },
-  navArrow: { fontSize: 24, color: colors.primary, fontWeight: '700' },
-  monthLabel: { ...typography.h3 },
+  navBtn: { padding: spacing.sm, paddingHorizontal: spacing.md },
+  navArrow: { fontSize: 22, color: colors.primary, fontWeight: '700' },
+  yearLabel: { ...typography.h3 },
+  monthsScroll: {
+    paddingHorizontal: spacing.sm,
+    gap: spacing.sm,
+    paddingBottom: spacing.sm,
+  },
+  monthChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.full,
+    backgroundColor: 'transparent',
+  },
+  monthChipActive: {
+    backgroundColor: colors.primary + '22', // Напівпрозорий фон активного місяця
+  },
+  monthChipText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  monthChipTextActive: {
+    color: colors.primary,
+    fontWeight: '700',
+  },
 
   summaryRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
   summaryCard: {

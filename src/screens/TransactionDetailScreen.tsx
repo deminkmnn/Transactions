@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { format } from 'date-fns';
-import { uk } from 'date-fns/locale';
+import { enUS } from 'date-fns/locale'; // Змінено на англійську локаль
 import { transactionsApi } from '../services/api';
 import { Transaction, TransactionCategory } from '../types';
 import { colors, spacing, radius, typography, categoryMeta } from '../theme';
@@ -26,7 +26,7 @@ export const TransactionDetailScreen: React.FC = () => {
   const isDebit = tx.type === 'debit';
   const amountColor = isDebit ? colors.danger : colors.success;
   const sign = isDebit ? '−' : '+';
-  const date = format(new Date(tx.transactionDate), 'd MMMM yyyy, HH:mm', { locale: uk });
+  const date = format(new Date(tx.transactionDate), 'd MMMM yyyy, HH:mm', { locale: enUS });
 
   const selectCategory = async (cat: TransactionCategory) => {
     if (cat === tx.category) return;
@@ -35,7 +35,7 @@ export const TransactionDetailScreen: React.FC = () => {
       const updated = await transactionsApi.updateCategory(tx.id, cat, note);
       setTx(updated);
     } catch {
-      Alert.alert('Помилка', 'Не вдалося змінити категорію');
+      Alert.alert('Error', 'Failed to change category');
     } finally {
       setSaving(false);
     }
@@ -46,9 +46,9 @@ export const TransactionDetailScreen: React.FC = () => {
     try {
       const updated = await transactionsApi.updateCategory(tx.id, tx.category, note);
       setTx(updated);
-      Alert.alert('Збережено ✓');
+      Alert.alert('Saved ✓');
     } catch {
-      Alert.alert('Помилка', 'Не вдалося зберегти');
+      Alert.alert('Error', 'Failed to save');
     } finally {
       setSaving(false);
     }
@@ -72,23 +72,23 @@ export const TransactionDetailScreen: React.FC = () => {
 
         {/* Деталі */}
         <View style={styles.card}>
-          <Row label="Тип" value={isDebit ? '↓ Витрата' : '↑ Дохід'} valueColor={amountColor} />
-          <Row label="Баланс після" value={`${Number(tx.balance).toFixed(2)} ₴`} />
-          {tx.mcc && <Row label="MCC код" value={String(tx.mcc)} />}
-          <Row label="Картка" value={`•••• ${tx.cardNumber.slice(-4)}`} />
+          <Row label="Type" value={isDebit ? '↓ Expense' : '↑ Income'} valueColor={amountColor} />
+          <Row label="Balance After" value={`${Number(tx.balance).toFixed(2)} ₴`} />
+          {tx.mcc && <Row label="MCC Code" value={String(tx.mcc)} />}
+          <Row label="Card" value={`•••• ${tx.cardNumber.slice(-4)}`} />
           {tx.categoryEditedByUser && (
-            <Row label="Категорія" value="змінено вручну" valueColor={colors.warning} />
+            <Row label="Category" value="changed manually" valueColor={colors.warning} />
           )}
         </View>
 
         {/* Нотатка */}
-        <Text style={styles.sectionTitle}>Нотатка</Text>
+        <Text style={styles.sectionTitle}>Note</Text>
         <View style={styles.noteWrap}>
           <TextInput
             style={styles.noteInput}
             value={note}
             onChangeText={setNote}
-            placeholder="Додати коментар..."
+            placeholder="Add a comment..."
             placeholderTextColor={colors.textMuted}
             multiline
             maxLength={100}
@@ -100,13 +100,13 @@ export const TransactionDetailScreen: React.FC = () => {
           >
             {saving
               ? <ActivityIndicator size="small" color={colors.primary} />
-              : <Text style={styles.saveBtnText}>Зберегти</Text>
+              : <Text style={styles.saveBtnText}>Save</Text>
             }
           </TouchableOpacity>
         </View>
 
         {/* Категорія */}
-        <Text style={styles.sectionTitle}>Категорія</Text>
+        <Text style={styles.sectionTitle}>Category</Text>
         <View style={styles.catGrid}>
           {ALL_CATEGORIES.map(cat => {
             const m = categoryMeta[cat];

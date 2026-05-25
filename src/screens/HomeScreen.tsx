@@ -51,8 +51,8 @@ export const HomeScreen: React.FC = () => {
           <>
             {/* Заголовок */}
             <View style={styles.header}>
-              <Text style={styles.greeting}>Привіт 👋</Text>
-              <Text style={typography.h2}>Мої фінанси</Text>
+              <Text style={styles.greeting}>Hello 👋</Text>
+              <Text style={typography.h2}>My Finances</Text>
             </View>
 
             {/* Картки балансу */}
@@ -65,7 +65,7 @@ export const HomeScreen: React.FC = () => {
             )}
 
             {/* Заголовок списку */}
-            <Text style={styles.sectionTitle}>Останні транзакції</Text>
+            <Text style={styles.sectionTitle}>Recent Transactions</Text>
 
             {loading && (
               <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xl }} />
@@ -77,7 +77,7 @@ export const HomeScreen: React.FC = () => {
         )}
         ListEmptyComponent={
           !loading ? (
-            <Text style={styles.empty}>Транзакцій поки немає</Text>
+            <Text style={styles.empty}>No transactions yet</Text>
           ) : null
         }
       />

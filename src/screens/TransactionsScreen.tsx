@@ -40,7 +40,7 @@ export const TransactionsScreen: React.FC = () => {
             onPress={() => setActiveType(t)}
           >
             <Text style={[styles.typeBtnText, activeType === t && styles.typeBtnTextActive]}>
-              {t === undefined ? 'Всі' : t === 'debit' ? '↓ Витрати' : '↑ Доходи'}
+              {t === undefined ? 'All' : t === 'debit' ? '↓ Expenses' : '↑ Income'}
             </Text>
           </TouchableOpacity>
         ))}
@@ -73,7 +73,7 @@ export const TransactionsScreen: React.FC = () => {
 
       {/* Лічильник */}
       <Text style={styles.counter}>
-        {loading ? '...' : `${total} транзакцій`}
+        {loading ? '...' : `${total} transactions`}
       </Text>
 
       {loading ? (
@@ -89,7 +89,7 @@ export const TransactionsScreen: React.FC = () => {
             <TransactionItem item={item} onPress={onTxPress} />
           )}
           ListEmptyComponent={
-            <Text style={styles.empty}>Нічого не знайдено</Text>
+            <Text style={styles.empty}>Nothing found</Text>
           }
         />
       )}
