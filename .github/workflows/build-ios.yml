@@ -30,8 +30,19 @@ jobs:
       - name: Install JS dependencies
         run: npm install
 
+      # patch-package ПЕРЕД prebuild — prebuild --clean не чіпає node_modules
       - name: Apply patches
         run: npx patch-package
+
+      # Перевіряємо що патч реально застосувався
+      - name: Verify patch applied
+        run: |
+          if grep -q "shadowNodeListFromValue" node_modules/react-native-gesture-handler/apple/RNGestureHandlerModule.mm; then
+            echo "✅ Patch applied successfully"
+          else
+            echo "❌ Patch NOT applied — build will fail"
+            exit 1
+          fi
 
       - name: Prebuild iOS
         run: npx expo prebuild --platform ios --clean --no-install
@@ -58,7 +69,11 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            build 2>&1 | tee build.log | xcpretty || true
+            build 2>&1 | tee build.log
+
+      - name: Show errors on failure
+        if: failure()
+        run: grep -E "error:|❌" ios/build.log | head -50 || tail -80 ios/build.log
 
       - name: Package into IPA
         run: |
@@ -73,8 +88,8 @@ jobs:
           name: iOS-App-AltStore
           path: ios/app.ipa
 
-      - name: Upload build log on failure
-        if: failure()
+      - name: Upload build log
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: build-log
