@@ -25,17 +25,12 @@ jobs:
       - name: Apply patches
         run: npx patch-package
 
-      - name: Clean iOS Build Artifacts
-        run: |
-          cd ios
-          rm -rf Pods
-          rm -f Podfile.lock
-          rm -rf build
-          cd ..
-
       - name: Install CocoaPods
         run: |
           cd ios
+          # Повна очистка перед установкою
+          rm -rf Pods
+          rm -f Podfile.lock
           pod repo update
           pod install
           cd ..
@@ -44,7 +39,10 @@ jobs:
         run: |
           cd ios
           set -o pipefail
+          # Знаходимо назву воркспейсу
           WORKSPACE=$(ls -d *.xcworkspace | head -n 1)
+          
+          # Основна команда збірки
           xcodebuild -workspace "$WORKSPACE" \
             -scheme "PrivatTracker" \
             -configuration Release \
@@ -59,6 +57,7 @@ jobs:
         run: |
           cd ios
           mkdir -p Payload
+          # Знаходимо артефакт
           find build -name "*.app" -exec cp -R {} Payload/ \;
           zip -qr app.ipa Payload/
 
