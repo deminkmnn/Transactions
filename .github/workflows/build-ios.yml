@@ -1,0 +1,55 @@
+name: Build iOS (AltStore)
+
+on:
+  workflow_dispatch: # Дозволяє запускати збірку кнопкою вручну
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Prebuild iOS
+        run: npx expo prebuild --platform ios --clean
+
+      - name: Install CocoaPods
+        run: cd ios && pod install
+
+      - name: Build Unsigned App
+        run: |
+          cd ios
+          PROJECT_NAME=$(ls | grep .xcworkspace | sed -e 's/.xcworkspace//')
+          # Збираємо додаток, примусово вимикаючи перевірку підпису Apple
+          xcodebuild -workspace "$PROJECT_NAME.xcworkspace" \
+            -scheme "$PROJECT_NAME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath ./build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Package into IPA
+        run: |
+          cd ios
+          mkdir Payload
+          # Копіюємо зкомпільований додаток у папку Payload
+          cp -R build/Build/Products/Release-iphoneos/*.app Payload/
+          # Пакуємо в класичний .ipa файл
+          zip -qr app.ipa Payload/
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: iOS-App-AltStore
+          path: ios/app.ipa
