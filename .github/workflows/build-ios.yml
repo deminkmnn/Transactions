@@ -27,28 +27,59 @@ jobs:
       - name: Install CocoaPods gem
         run: gem install cocoapods --no-document
 
-      # Встановлюємо без postinstall — patch-package ще не існує в node_modules
       - name: Install JS dependencies
         run: npm install --ignore-scripts
 
-      # Тепер patch-package вже є в node_modules — застосовуємо патчі
-      - name: Apply patches
-        run: npx patch-package
-
-      # Перевірка
-      - name: Verify patch applied
+      # Замість patch-package — пряма заміна Python-ом (надійно, незалежно від endings)
+      - name: Fix RNGestureHandlerModule.mm
         run: |
-          if grep -q "shadowNodeListFromValue" node_modules/react-native-gesture-handler/apple/RNGestureHandlerModule.mm; then
-            echo "✅ Patch applied successfully"
-          else
-            echo "❌ Patch NOT applied — aborting"
-            sed -n '100,120p' node_modules/react-native-gesture-handler/apple/RNGestureHandlerModule.mm
-            exit 1
-          fi
+          python3 << 'PYEOF'
+          import sys
 
-      # Запускаємо postinstall скрипти вручну (без patch-package, він вже відпрацював)
-      - name: Run other postinstall scripts
-        run: npx expo install --check || true
+          path = "node_modules/react-native-gesture-handler/apple/RNGestureHandlerModule.mm"
+          with open(path, "r") as f:
+              content = f.read()
+
+          old = (
+              "        auto shadowNode = shadowNodeFromValue(runtime, arguments[0]);\n"
+              "\n"
+              "        if (dynamic_pointer_cast<const ParagraphShadowNode>(shadowNode)) {\n"
+              "          return jsi::Value(true);\n"
+              "        }\n"
+              "\n"
+              "        if (dynamic_pointer_cast<const TextShadowNode>(shadowNode)) {\n"
+              "          return jsi::Value(true);\n"
+              "        }\n"
+              "\n"
+              "        bool isViewFlatteningDisabled = shadowNode->getTraits().check(ShadowNodeTraits::FormsStackingContext);\n"
+              "\n"
+              "        return jsi::Value(isViewFlatteningDisabled);"
+          )
+
+          new = (
+              "        auto shadowNodeList = shadowNodeListFromValue(runtime, arguments[0]);\n"
+              "        if (!shadowNodeList.empty()) {\n"
+              "          auto shadowNode = shadowNodeList[0];\n"
+              "          bool isViewFlatteningDisabled = shadowNode->getTraits().check(ShadowNodeTraits::FormsStackingContext);\n"
+              "          return jsi::Value(isViewFlatteningDisabled);\n"
+              "        }\n"
+              "        return jsi::Value::null();"
+          )
+
+          if old in content:
+              content = content.replace(old, new)
+              with open(path, "w") as f:
+                  f.write(content)
+              print("✅ Fix applied successfully")
+          elif "shadowNodeListFromValue" in content:
+              print("✅ Already fixed (patch was applied earlier)")
+          else:
+              print("❌ Could not find target block")
+              lines = content.splitlines()
+              for i, line in enumerate(lines[98:120], 99):
+                  print(f"{i}: {line}")
+              sys.exit(1)
+          PYEOF
 
       - name: Prebuild iOS
         run: npx expo prebuild --platform ios --clean --no-install
