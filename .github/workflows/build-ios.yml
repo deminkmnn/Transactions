@@ -18,10 +18,12 @@ jobs:
           node-version: '22'
 
       - name: Install dependencies
-        run: npm install
+        run: |
+          npm install
+          npx expo install --fix
 
-      - name: Prebuild iOS
-        run: npx expo prebuild --platform ios --clean
+      - name: Apply patches
+        run: npx patch-package
 
       - name: Clean iOS Build Artifacts
         run: |
@@ -34,10 +36,6 @@ jobs:
       - name: Install CocoaPods
         run: |
           cd ios
-          # Очищаємо Podfile.lock і Pods перед установкою
-          rm -f Podfile.lock
-          rm -rf Pods
-          bundle install || echo "No Gemfile found"
           pod repo update
           pod install
           cd ..
@@ -46,12 +44,7 @@ jobs:
         run: |
           cd ios
           set -o pipefail
-          
-          # 1. Знаходимо ім'я .xcworkspace файлу автоматично
           WORKSPACE=$(ls -d *.xcworkspace | head -n 1)
-          echo "Building workspace: $WORKSPACE"
-          
-          # 2. Збираємо додаток, використовуючи знайдену назву
           xcodebuild -workspace "$WORKSPACE" \
             -scheme "PrivatTracker" \
             -configuration Release \
@@ -60,18 +53,13 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            build
-            
-          echo "--- BUILD COMPLETED, LISTING FILES ---"
-          find . -name "*.app"
+            build | xcpretty || true
 
       - name: Package into IPA
         run: |
           cd ios
-          # Знаходимо скомпільований .app файл і створюємо структуру Payload
           mkdir -p Payload
           find build -name "*.app" -exec cp -R {} Payload/ \;
-          # Пакуємо в IPA
           zip -qr app.ipa Payload/
 
       - name: Upload IPA
