@@ -46,12 +46,14 @@ jobs:
         run: |
           cd ios
           set -o pipefail
-          # Спробуємо знайти назву схеми автоматично і зібрати
-          SCHEME=$(xcodebuild -list | grep -A 1 "Schemes:" | tail -n1 | xargs)
-          echo "Building scheme: $SCHEME"
           
-          xcodebuild -workspace "*.xcworkspace" \
-            -scheme "$SCHEME" \
+          # 1. Знаходимо ім'я .xcworkspace файлу автоматично
+          WORKSPACE=$(ls -d *.xcworkspace | head -n 1)
+          echo "Building workspace: $WORKSPACE"
+          
+          # 2. Збираємо додаток, використовуючи знайдену назву
+          xcodebuild -workspace "$WORKSPACE" \
+            -scheme "PrivatTracker" \
             -configuration Release \
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
@@ -62,7 +64,7 @@ jobs:
             
           echo "--- BUILD COMPLETED, LISTING FILES ---"
           find . -name "*.app"
-          
+
       - name: Package into IPA
         run: |
           cd ios
