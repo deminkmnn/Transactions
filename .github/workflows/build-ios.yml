@@ -46,17 +46,23 @@ jobs:
         run: |
           cd ios
           set -o pipefail
-          # Збираємо додаток, ігноруючи підпис
+          # Спробуємо знайти назву схеми автоматично і зібрати
+          SCHEME=$(xcodebuild -list | grep -A 1 "Schemes:" | tail -n1 | xargs)
+          echo "Building scheme: $SCHEME"
+          
           xcodebuild -workspace "*.xcworkspace" \
-            -scheme "*" \
+            -scheme "$SCHEME" \
             -configuration Release \
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            build | xcpretty || true
-
+            build
+            
+          echo "--- BUILD COMPLETED, LISTING FILES ---"
+          find . -name "*.app"
+          
       - name: Package into IPA
         run: |
           cd ios
