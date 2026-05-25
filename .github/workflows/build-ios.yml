@@ -6,6 +6,8 @@ on:
 jobs:
   build-ios:
     runs-on: macos-latest
+    env: # Додай цей блок
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -22,7 +24,9 @@ jobs:
         run: npx expo prebuild --platform ios --clean
 
       - name: Install CocoaPods
-        run: cd ios && pod install
+        run: cd ios
+          pod repo update
+          pod install
 
       - name: Build Unsigned App
         run: |
@@ -35,9 +39,9 @@ jobs:
             -sdk iphoneos \
             -derivedDataPath ./build \
             CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_REQUIRED=NO \  
             CODE_SIGN_IDENTITY="" \
-            build
+            build | xcpretty
 
       - name: Package into IPA
         run: |
