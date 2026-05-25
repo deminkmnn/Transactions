@@ -27,20 +27,19 @@ jobs:
       - name: Install CocoaPods gem
         run: gem install cocoapods --no-document
 
-      - name: Install JS dependencies
+      # npm install запускає postinstall → patch-package автоматично
+      - name: Install JS dependencies (+ apply patches via postinstall)
         run: npm install
 
-      # patch-package ПЕРЕД prebuild — prebuild --clean не чіпає node_modules
-      - name: Apply patches
-        run: npx patch-package
-
-      # Перевіряємо що патч реально застосувався
+      # Явна перевірка що патч реально застосувався
       - name: Verify patch applied
         run: |
           if grep -q "shadowNodeListFromValue" node_modules/react-native-gesture-handler/apple/RNGestureHandlerModule.mm; then
             echo "✅ Patch applied successfully"
           else
-            echo "❌ Patch NOT applied — build will fail"
+            echo "❌ Patch NOT applied"
+            echo "--- File content around line 104 ---"
+            sed -n '100,115p' node_modules/react-native-gesture-handler/apple/RNGestureHandlerModule.mm
             exit 1
           fi
 
@@ -73,7 +72,7 @@ jobs:
 
       - name: Show errors on failure
         if: failure()
-        run: grep -E "error:|❌" ios/build.log | head -50 || tail -80 ios/build.log
+        run: grep -E "^.*(error:|❌).*$" ios/build.log | head -30 || tail -50 ios/build.log
 
       - name: Package into IPA
         run: |
