@@ -1,0 +1,32 @@
+diff --git a/node_modules/react-native-gesture-handler/apple/RNGestureHandlerModule.mm b/node_modules/react-native-gesture-handler/apple/RNGestureHandlerModule.mm
+index 594eba3..73b9a6c 100644
+--- a/node_modules/react-native-gesture-handler/apple/RNGestureHandlerModule.mm
++++ b/node_modules/react-native-gesture-handler/apple/RNGestureHandlerModule.mm
+@@ -101,18 +101,17 @@ void decorateRuntime(jsi::Runtime &runtime)
+         if (!arguments[0].isObject()) {
+           return jsi::Value::null();
+         }
+-        auto shadowNode = shadowNodeFromValue(runtime, arguments[0]);
+-
+-        if (dynamic_pointer_cast<const ParagraphShadowNode>(shadowNode)) {
+-          return jsi::Value(true);
+-        }
+-
+-        if (dynamic_pointer_cast<const TextShadowNode>(shadowNode)) {
+-          return jsi::Value(true);
+-        }
+-
++      auto shadowNodeList = shadowNodeListFromValue(runtime, arguments[0]);
++      if (!shadowNodeList.empty()) {
++        auto shadowNode = shadowNodeList[0];
+         bool isViewFlatteningDisabled = shadowNode->getTraits().check(ShadowNodeTraits::FormsStackingContext);
+         
++        jsi::Object result(runtime);
++        result.setProperty(runtime, "viewFlatteningEnabled", !isViewFlatteningDisabled);
++        return result;
++      }
++      return jsi::Value::null();
++
+         return jsi::Value(isViewFlatteningDisabled);
+       });
+   runtime.global().setProperty(runtime, "isViewFlatteningDisabled", std::move(isViewFlatteningDisabled));
